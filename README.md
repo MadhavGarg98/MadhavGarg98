@@ -1,21 +1,56 @@
-# 💫 About Me:
-I’m currently working on Learning Data Structures & Algorithms, building projects in Java/Python, and strengthening my problem-solving skills.<br>I’m looking to collaborate on Beginner-friendly open-source projects, college-level tech projects, and learning-focused hackathons.<br>I’m looking for help with Optimizing DSA solutions, understanding system design basics, and improving clean code practices.<br>I’m currently learning DSA, Object-Oriented Programming, Git & GitHub, and fundamentals of backend development.<br>Ask me about MongoDB basics, Java fundamentals, Mern stack or anything I’m currently learning.<br>Fun fact I enjoy breaking down complex CS concepts into simple explanations (and I don’t give up easily 😄).
+<div align="center">
 
+<img src="assets/scene.svg" alt="Pixel town built from my GitHub activity" width="100%"/>
 
-## 🌐 Socials:
-[![LinkedIn](https://img.shields.io/badge/LinkedIn-%230077B5.svg?logo=linkedin&logoColor=white)](https://linkedin.com/in/madhav-garg-b447b5324) [![email](https://img.shields.io/badge/Email-D14836?logo=gmail&logoColor=white)](mailto:madhavgarg3300@gmail.com) 
+<br/><br/>
 
-# 💻 Tech Stack:
-![MongoDB](https://img.shields.io/badge/MongoDB-%234ea94b.svg?style=for-the-badge&logo=mongodb&logoColor=white) ![Nodemon](https://img.shields.io/badge/NODEMON-%23323330.svg?style=for-the-badge&logo=nodemon&logoColor=%BBDEAD) ![React](https://img.shields.io/badge/react-%2320232a.svg?style=for-the-badge&logo=react&logoColor=%2361DAFB) ![React Hook Form](https://img.shields.io/badge/React%20Hook%20Form-%23EC5990.svg?style=for-the-badge&logo=reacthookform&logoColor=white) ![Firebase](https://img.shields.io/badge/firebase-%23039BE5.svg?style=for-the-badge&logo=firebase) ![Figma](https://img.shields.io/badge/figma-%23F24E1E.svg?style=for-the-badge&logo=figma&logoColor=white) ![C++](https://img.shields.io/badge/c++-%2300599C.svg?style=for-the-badge&logo=c%2B%2B&logoColor=white) ![C++](https://img.shields.io/badge/c++-%2300599C.svg?style=for-the-badge&logo=c%2B%2B&logoColor=white) ![Netlify](https://img.shields.io/badge/netlify-%23000000.svg?style=for-the-badge&logo=netlify&logoColor=#00C7B7) ![Vercel](https://img.shields.io/badge/vercel-%23000000.svg?style=for-the-badge&logo=vercel&logoColor=white) ![AWS](https://img.shields.io/badge/AWS-%23FF9900.svg?style=for-the-badge&logo=amazon-aws&logoColor=white) ![Oracle](https://img.shields.io/badge/Oracle-F80000?style=for-the-badge&logo=oracle&logoColor=white) ![Docker](https://img.shields.io/badge/docker-%230db7ed.svg?style=for-the-badge&logo=docker&logoColor=white) ![MySQL](https://img.shields.io/badge/mysql-4479A1.svg?style=for-the-badge&logo=mysql&logoColor=white) ![GitHub](https://img.shields.io/badge/github-%23121011.svg?style=for-the-badge&logo=github&logoColor=white) ![Git](https://img.shields.io/badge/git-%23F05033.svg?style=for-the-badge&logo=git&logoColor=white) ![Java](https://img.shields.io/badge/java-%23ED8B00.svg?style=for-the-badge&logo=openjdk&logoColor=white) ![JavaScript](https://img.shields.io/badge/javascript-%23323330.svg?style=for-the-badge&logo=javascript&logoColor=%23F7DF1E) ![CSS3](https://img.shields.io/badge/css3-%231572B6.svg?style=for-the-badge&logo=css3&logoColor=white) ![C++](https://img.shields.io/badge/c++-%2300599C.svg?style=for-the-badge&logo=c%2B%2B&logoColor=white) ![HTML5](https://img.shields.io/badge/html5-%23E34F26.svg?style=for-the-badge&logo=html5&logoColor=white) ![React](https://img.shields.io/badge/react-%2320232a.svg?style=for-the-badge&logo=react&logoColor=%2361DAFB) ![MongoDB](https://img.shields.io/badge/MongoDB-%234ea94b.svg?style=for-the-badge&logo=mongodb&logoColor=white) ![MySQL](https://img.shields.io/badge/mysql-4479A1.svg?style=for-the-badge&logo=mysql&logoColor=white) ![Docker](https://img.shields.io/badge/docker-%230db7ed.svg?style=for-the-badge&logo=docker&logoColor=white)
-# 📊 GitHub Stats:
-![](https://github-readme-stats.vercel.app/api?username=MadhavGarg98&theme=dark&hide_border=false&include_all_commits=false&count_private=false)<br/>
-![](https://nirzak-streak-stats.vercel.app/?user=MadhavGarg98&theme=dark&hide_border=false)<br/>
-![](https://github-readme-stats.vercel.app/api/top-langs/?username=MadhavGarg98&theme=dark&hide_border=false&include_all_commits=false&count_private=false&layout=compact)
+<img src="assets/puzzle.svg" alt="Mosaic of my face, filled in by visitors" width="100%"/>
 
-### ✍️ Random Dev Quote
-![](https://quotes-github-readme.vercel.app/api?type=horizontal&theme=light)
+<br/>
 
----
-[![](https://visitcount.itsvg.in/api?id=MadhavGarg98&icon=0&color=0)](https://visitcount.itsvg.in)
+<a href="https://github.com/MadhavGarg98/MadhavGarg98/issues/new?title=Add+my+pixel&body=Just+press+%22Submit+new+issue%22.+A+bot+will+put+your+GitHub+photo+into+my+portrait+in+about+a+minute.">
+  <img src="https://img.shields.io/badge/ADD_MY_PIXEL-ff7a45?style=for-the-badge&logo=github&logoColor=white" alt="Add my pixel"/>
+</a>
 
-<!-- Proudly created with GPRM ( https://gprm.itsvg.in ) -->
+<sub>Click, press <b>Submit new issue</b>, and wait about a minute. Then refresh this page.</sub>
+
+<br/><br/>
+
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-8b7bff?style=for-the-badge&logo=linkedin&logoColor=white)](https://linkedin.com/in/madhav-garg-b447b5324)
+[![Email](https://img.shields.io/badge/Email-ff7a45?style=for-the-badge&logo=gmail&logoColor=white)](mailto:madhavgarg3300@gmail.com)
+
+<img src="assets/divider.svg" alt="" width="100%"/>
+
+</div>
+
+## What I'm up to
+
+I'm learning data structures and algorithms, building projects in Java and Python, and getting comfortable with backend development.
+I like breaking complex CS ideas into simple explanations, and I don't give up easily.
+
+**Looking to collaborate on:** beginner-friendly open source, college tech projects, learning-focused hackathons.
+**Looking for help with:** optimizing DSA solutions, system design basics, clean code habits.
+**Ask me about:** MongoDB basics, Java fundamentals, the MERN stack.
+
+<div align="center">
+
+<img src="assets/divider.svg" alt="" width="100%"/>
+
+<img src="assets/graph.svg" alt="My tech stack as a graph, traversed with BFS" width="100%"/>
+
+<img src="assets/divider.svg" alt="" width="100%"/>
+
+### Shipping, one square at a time
+
+<img src="https://raw.githubusercontent.com/MadhavGarg98/MadhavGarg98/output/snake.svg" alt="Snake eating my contribution graph" width="100%"/>
+
+<br/>
+
+<img height="170" src="https://github-readme-stats.vercel.app/api?username=MadhavGarg98&show_icons=true&hide_border=false&bg_color=0b0a1a&border_color=2b2757&title_color=ff7a45&text_color=f1ede4&icon_color=8b7bff&ring_color=ff7a45&border_radius=14"/>
+<img height="170" src="https://github-readme-stats.vercel.app/api/top-langs/?username=MadhavGarg98&layout=compact&hide_border=false&bg_color=0b0a1a&border_color=2b2757&title_color=ff7a45&text_color=f1ede4&border_radius=14"/>
+
+<br/><br/>
+
+<sub>`while (!giveUp) { learn(); build(); ship(); }`</sub>
+
+</div>
