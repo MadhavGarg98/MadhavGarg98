@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 28" width="1000" height="28" aria-hidden="true">
+<defs><linearGradient id="f" x1="0" x2="1"><stop offset="0" stop-color="#2b2757" stop-opacity="0"/><stop offset="0.5" stop-color="#2b2757"/><stop offset="1" stop-color="#2b2757" stop-opacity="0"/></linearGradient>
+<linearGradient id="p" gradientUnits="userSpaceOnUse" x1="-160" x2="0"><stop offset="0" stop-color="#ff7a45" stop-opacity="0"/><stop offset="1" stop-color="#ff7a45"/>
+<animateTransform attributeName="gradientTransform" type="translate" from="0 0" to="1160 0" dur="4s" repeatCount="indefinite"/></linearGradient></defs>
+<path d="M0 14 L380 14 L400 14 L412 5 L424 23 L438 2 L452 24 L464 14 L520 14 L1000 14" fill="none" stroke="url(#f)" stroke-width="2" stroke-linejoin="round"/>
+<path d="M0 14 L380 14 L400 14 L412 5 L424 23 L438 2 L452 24 L464 14 L520 14 L1000 14" fill="none" stroke="url(#p)" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/>
+</svg>

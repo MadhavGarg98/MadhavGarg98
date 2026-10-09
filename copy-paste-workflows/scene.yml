@@ -1,0 +1,40 @@
+name: Update pixel scene
+
+on:
+  schedule:
+    - cron: "0 */2 * * *"     # every 2 hours
+  workflow_dispatch:           # "Run workflow" button
+  push:
+    paths:
+      - "scripts/build_scene.py"
+
+permissions:
+  contents: write
+
+jobs:
+  scene:
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      PROFILE_USER: ${{ github.repository_owner }}
+      BRANCH: ${{ github.event.repository.default_branch }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build and save the scene
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          for i in 1 2 3 4 5; do
+            git fetch origin "$BRANCH"
+            git reset --hard "origin/$BRANCH"
+            python scripts/build_scene.py
+            git add assets/scene.svg
+            if git diff --cached --quiet; then break; fi
+            git commit -m "scene: refresh"
+            if git push origin "HEAD:$BRANCH"; then break; fi
+            sleep $((RANDOM % 6 + 2))
+          done
