@@ -1,13 +1,16 @@
-"""Builds assets/scene.svg: a pixel town driven by your real GitHub data.
+"""Builds every picture on the profile from your real GitHub data (town, post, player, wrapped, inventory).
 Usage:  python scripts/build_scene.py            (real data, needs GITHUB_TOKEN)
         python scripts/build_scene.py --demo     (fake data, for previews)
 """
 import datetime as dt, json, math, os, random, sys, urllib.request
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import profile_art as pa
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 USER = os.environ.get("PROFILE_USER", "MadhavGarg98")
 INK, PANEL, LINE, PAPER, MUTED = "#0b0a1a", "#12102a", "#2b2757", "#f1ede4", "#8e89b8"
 ORANGE, VIOLET = "#ff7a45", "#8b7bff"
+GOLD = "#ffd36b"
 SANS = "Inter,'Segoe UI',Helvetica,Arial,sans-serif"
 MONO = "'JetBrains Mono','Fira Code',Consolas,'DejaVu Sans Mono',monospace"
 IST = dt.timezone(dt.timedelta(hours=5, minutes=30))
@@ -19,9 +22,13 @@ LANG = {"Java": "#ED8B00", "JavaScript": "#f1e05a", "TypeScript": "#3178c6", "Py
 def fetch():
     token = os.environ["GITHUB_TOKEN"]
     q = """query($login:String!){user(login:$login){
+      followers{totalCount} following{totalCount}
+      allRepos: repositories(privacy:PUBLIC,ownerAffiliations:OWNER){totalCount}
       contributionsCollection{contributionCalendar{totalContributions weeks{contributionDays{date contributionCount}}}}
       repositories(first:12,privacy:PUBLIC,ownerAffiliations:OWNER,isFork:false,orderBy:{field:PUSHED_AT,direction:DESC}){
-        nodes{name stargazerCount pushedAt diskUsage primaryLanguage{name}}}}}"""
+        nodes{name stargazerCount pushedAt diskUsage primaryLanguage{name}}}
+      langRepos: repositories(first:100,privacy:PUBLIC,ownerAffiliations:OWNER,isFork:false){
+        nodes{languages(first:6,orderBy:{field:SIZE,direction:DESC}){edges{size node{name}}}}}}}"""
     req = urllib.request.Request("https://api.github.com/graphql",
                                  data=json.dumps({"query": q, "variables": {"login": USER}}).encode(),
                                  headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json",
@@ -40,7 +47,24 @@ def fetch():
         pushed = dt.datetime.fromisoformat(r["pushedAt"].replace("Z", "+00:00"))
         repos.append({"name": r["name"], "stars": r["stargazerCount"], "pushed": pushed,
                       "size": r["diskUsage"] or 1, "lang": (r["primaryLanguage"] or {}).get("name", "")})
-    return {"repos": repos, "today": today, "streak": streak, "total": cal["totalContributions"]}
+    sizes = {}
+    for rp in u["langRepos"]["nodes"]:
+        for e in rp["languages"]["edges"]:
+            sizes[e["node"]["name"]] = sizes.get(e["node"]["name"], 0) + e["size"]
+    tot = sum(sizes.values()) or 1
+    langs = sorted(((n, v * 100.0 / tot) for n, v in sizes.items()), key=lambda x: -x[1])[:6]
+    return {"repos_list": repos, "today": today, "streak": streak, "total": cal["totalContributions"],
+            "repos": u["allRepos"]["totalCount"], "followers": u["followers"]["totalCount"],
+            "following": u["following"]["totalCount"], "langs": langs}
+
+
+def initial():
+    """Honest placeholders taken from the profile page; replaced by the first workflow run."""
+    d = demo(0, 0)
+    d["repos_list"] = [r for r in d["repos_list"] if r["name"] in ("salessaarthi", "Capstone_Coffee-Chat", "DocuQuery-AI", "Gym_Management_System")]
+    d.update({"repos": 86, "followers": 3, "following": 5, "total": 410,
+              "langs": [("JavaScript", 52.5), ("TypeScript", 17.6), ("Python", 9.8), ("Dart", 9.4), ("Assembly", 7.8), ("CSS", 3.0)]})
+    return d
 
 
 def demo(today=3, streak=2):
@@ -50,7 +74,8 @@ def demo(today=3, streak=2):
              ("dsa-practice", "C++", 120, 2), ("portfolio", "TypeScript", 1500, 9)]
     repos = [{"name": n, "stars": 1 if i == 1 else 0, "pushed": now - dt.timedelta(days=d), "size": s, "lang": l}
              for i, (n, l, s, d) in enumerate(names)]
-    return {"repos": repos, "today": today, "streak": streak, "total": 410}
+    return {"repos_list": repos, "today": today, "streak": streak, "total": 410, "repos": 86, "followers": 3, "following": 5,
+            "langs": [("JavaScript", 52.5), ("TypeScript", 17.6), ("Python", 9.8), ("Dart", 9.4), ("Assembly", 7.8)]}
 
 
 # ------------------------------------------------------------------ pixel art helpers
@@ -108,12 +133,23 @@ def build(data, now, state_override=None, phase_override=None):
     top, bot = SKY[phase]
     o = []
 
-    # header band
-    o.append(f'<rect width="{W}" height="96" fill="{INK}"/>')
-    o.append(f'<text x="40" y="62" font-family="{SANS}" font-size="46" font-weight="800" letter-spacing="-1" fill="url(#g)">Madhav Garg</text>')
-    o.append(f'<text x="42" y="86" font-family="{SANS}" font-size="14" fill="{MUTED}">Computer Science student learning DSA and backend development</text>')
-    o.append(f'<text x="960" y="52" text-anchor="end" font-family="{MONO}" font-size="14" fill="{PAPER}">{data["total"]} contributions in the last year</text>')
-    o.append(f'<text x="960" y="76" text-anchor="end" font-family="{MONO}" font-size="14" fill="{ORANGE}">{streak}-day streak, {today} today</text>')
+    # game HUD
+    total = data["total"]; lvl = 1 + total // 40; xp = total % 40
+    o.append(f'<rect width="{W}" height="96" fill="{INK}"/><line x1="0" y1="96" x2="{W}" y2="96" stroke="{LINE}" stroke-width="2"/>')
+    o.append(f'<rect x="40" y="22" width="104" height="52" rx="10" fill="{ORANGE}"/><text x="92" y="42" text-anchor="middle" font-family="{MONO}" font-size="11" font-weight="800" letter-spacing="2" fill="{INK}">LEVEL</text>'
+             f'<text x="92" y="66" text-anchor="middle" font-family="{MONO}" font-size="26" font-weight="800" fill="{INK}">{lvl}</text>')
+    o.append(f'<text x="168" y="40" font-family="{MONO}" font-size="12" letter-spacing="2" fill="{MUTED}">XP</text>'
+             f'<rect x="196" y="28" width="260" height="16" rx="8" fill="{PANEL}" stroke="{LINE}"/><rect x="196" y="28" width="{max(6, 260 * xp / 40):.0f}" height="16" rx="8" fill="url(#hg)"/>'
+             f'<text x="168" y="68" font-family="{MONO}" font-size="12" fill="{PAPER}">{xp} / 40 to level {lvl + 1}</text>')
+    hearts = ""
+    for k in range(7):
+        full = k < min(streak, 7)
+        hearts += (f'<g transform="translate({500 + k * 30} 24) scale(1.0)"><path d="M12 21s-7-4.5-9.5-9C.8 8.5 3 5 6.5 5c2 0 3.5 1 5.5 3 2-2 3.5-3 5.5-3C21 5 23.2 8.5 21.5 12 19 16.5 12 21 12 21z" '
+                   f'fill="{ORANGE if full else "none"}" stroke="{ORANGE if full else LINE}" stroke-width="1.8"/></g>')
+    o.append(hearts + f'<text x="500" y="68" font-family="{MONO}" font-size="12" fill="{PAPER}">{streak}-day streak, {today} today</text>')
+    icon = ('<circle cx="0" cy="0" r="9" fill="#f4f1d8"/>' if night else f'<circle cx="0" cy="0" r="9" fill="{GOLD}"/>')
+    o.append(f'<g transform="translate(930 36)">{icon}</g><text x="900" y="40" text-anchor="end" font-family="{MONO}" font-size="20" font-weight="800" fill="{PAPER}">{now.strftime("%H:%M")}</text>'
+             f'<text x="960" y="68" text-anchor="end" font-family="{MONO}" font-size="12" letter-spacing="2" fill="{MUTED}">IST  {phase.upper()}</text>')
 
     # sky
     o.append(f'<rect y="96" width="{W}" height="{GY-96}" fill="url(#sky)"/>')
@@ -137,7 +173,7 @@ def build(data, now, state_override=None, phase_override=None):
     o.append(f'<rect y="{GY}" width="{W}" height="{H-GY}" fill="{GROUND[phase]}"/><rect y="{GY}" width="{W}" height="6" fill="{LINE}"/>')
 
     # buildings
-    repos = data["repos"][:9]
+    repos = data["repos_list"][:9]
     bx = 34
     for r in repos:
         w = 58
@@ -215,10 +251,10 @@ def build(data, now, state_override=None, phase_override=None):
              f'<text x="{(RX0+RX1)/2:.0f}" y="211" text-anchor="middle" font-family="{MONO}" font-size="13" font-weight="700" fill="{INK}">{msg}</text></g>')
 
     # caption
-    o.append(f'<text x="40" y="{H-14}" font-family="{MONO}" font-size="11" fill="{MUTED}">live from my GitHub, updated {now.strftime("%H:%M")} IST, each building is a repo, taller means bigger, lit windows mean recent pushes</text>')
+    o.append(f'<text x="40" y="{H-14}" font-family="{MONO}" font-size="11" fill="{MUTED}">live from my GitHub: each building is a repo, taller is bigger, lit windows are recent pushes, 1 level per 40 contributions</text>')
 
     svg = f'''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {H}" width="{W}" height="{H}" role="img" aria-label="Pixel town built from Madhav's GitHub activity. Madhav is {'celebrating a streak' if state=='celebrate' else 'coding' if state=='code' else 'sleeping'}.">
-<defs><linearGradient id="g" x1="0" x2="1"><stop offset="0" stop-color="{ORANGE}"/><stop offset="1" stop-color="{VIOLET}"/></linearGradient>
+<defs><linearGradient id="hg" x1="0" x2="1"><stop offset="0" stop-color="{ORANGE}"/><stop offset="1" stop-color="{VIOLET}"/></linearGradient><linearGradient id="g" x1="0" x2="1"><stop offset="0" stop-color="{ORANGE}"/><stop offset="1" stop-color="{VIOLET}"/></linearGradient>
 <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="{top}"/><stop offset="1" stop-color="{bot}"/></linearGradient>
 <clipPath id="card"><rect width="{W}" height="{H}" rx="18"/></clipPath></defs>
 <g clip-path="url(#card)" shape-rendering="crispEdges">{"".join(o)}</g>
@@ -230,16 +266,22 @@ def build(data, now, state_override=None, phase_override=None):
 def main():
     now = dt.datetime.now(IST)
     if "--demo" in sys.argv:
-        data = demo()
+        data = demo(3, 2)
+    elif "--initial" in sys.argv:
+        data = initial()
     else:
         try:
             data = fetch()
         except Exception as e:  # never break the profile because of an API hiccup
-            print("GitHub API failed, keeping the old picture:", e)
+            print("GitHub API failed, keeping the old pictures:", e)
             sys.exit(0)
-    out = os.path.join(ROOT, "assets", "scene.svg")
-    open(out, "w", encoding="utf-8").write(build(data, now))
-    print("wrote", out, "| today:", data["today"], "streak:", data["streak"], "repos:", len(data["repos"]))
+    out = os.path.join(ROOT, "assets")
+    os.makedirs(out, exist_ok=True)
+    files = {"scene.svg": build(data, now), "instagram.svg": pa.instagram(data), "player.svg": pa.player(data),
+             "wrapped.svg": pa.wrapped(data), "inventory.svg": pa.inventory(data)}
+    for name, svg in files.items():
+        open(os.path.join(out, name), "w", encoding="utf-8").write(svg)
+    print("wrote", ", ".join(files), "| today:", data["today"], "streak:", data["streak"], "total:", data["total"])
 
 
 if __name__ == "__main__":
