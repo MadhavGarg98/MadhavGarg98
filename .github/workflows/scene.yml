@@ -6,7 +6,8 @@ on:
   workflow_dispatch:           # "Run workflow" button
   push:
     paths:
-      - "scripts/build_scene.py"
+      - "scripts/**"
+      - "data/**"
 
 permissions:
   contents: write
@@ -24,7 +25,7 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Build and save the scene
+      - name: Build and save all pictures
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -32,9 +33,9 @@ jobs:
             git fetch origin "$BRANCH"
             git reset --hard "origin/$BRANCH"
             python scripts/build_scene.py
-            git add assets/scene.svg
+            git add assets
             if git diff --cached --quiet; then break; fi
-            git commit -m "scene: refresh"
+            git commit -m "profile: refresh pictures"
             if git push origin "HEAD:$BRANCH"; then break; fi
             sleep $((RANDOM % 6 + 2))
           done
