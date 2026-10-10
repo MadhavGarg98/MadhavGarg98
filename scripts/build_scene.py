@@ -24,9 +24,10 @@ def fetch():
     q = """query($login:String!){user(login:$login){
       followers{totalCount} following{totalCount}
       allRepos: repositories(privacy:PUBLIC,ownerAffiliations:OWNER){totalCount}
-      contributionsCollection{contributionCalendar{totalContributions weeks{contributionDays{date contributionCount}}}}
+      contributionsCollection{contributionCalendar{totalContributions weeks{contributionDays{date contributionCount weekday}}}}
       repositories(first:12,privacy:PUBLIC,ownerAffiliations:OWNER,isFork:false,orderBy:{field:PUSHED_AT,direction:DESC}){
         nodes{name stargazerCount pushedAt diskUsage primaryLanguage{name}}}
+      pinnedItems(first:6,types:REPOSITORY){nodes{... on Repository{name stargazerCount pushedAt primaryLanguage{name}}}}
       langRepos: repositories(first:100,privacy:PUBLIC,ownerAffiliations:OWNER,isFork:false){
         nodes{languages(first:6,orderBy:{field:SIZE,direction:DESC}){edges{size node{name}}}}}}}"""
     req = urllib.request.Request("https://api.github.com/graphql",
@@ -35,8 +36,9 @@ def fetch():
                                           "User-Agent": "profile-scene"})
     u = json.load(urllib.request.urlopen(req, timeout=30))["data"]["user"]
     cal = u["contributionsCollection"]["contributionCalendar"]
-    days = [d for w in cal["weeks"] for d in w["contributionDays"]]
-    counts = [d["contributionCount"] for d in days]
+    raw_days = [d for w in cal["weeks"] for d in w["contributionDays"]]
+    days = [{"date": d["date"], "count": d["contributionCount"], "weekday": d["weekday"]} for d in raw_days]
+    counts = [d["count"] for d in days]
     today = counts[-1]
     i = len(counts) - 1 if today > 0 else len(counts) - 2
     streak = 0
@@ -53,17 +55,61 @@ def fetch():
             sizes[e["node"]["name"]] = sizes.get(e["node"]["name"], 0) + e["size"]
     tot = sum(sizes.values()) or 1
     langs = sorted(((n, v * 100.0 / tot) for n, v in sizes.items()), key=lambda x: -x[1])[:6]
+    pinned = []
+    for r in u["pinnedItems"]["nodes"]:
+        pinned.append({"name": r["name"], "stars": r["stargazerCount"], "lang": (r["primaryLanguage"] or {}).get("name", ""),
+                       "pushed": dt.datetime.fromisoformat(r["pushedAt"].replace("Z", "+00:00"))})
     return {"repos_list": repos, "today": today, "streak": streak, "total": cal["totalContributions"],
             "repos": u["allRepos"]["totalCount"], "followers": u["followers"]["totalCount"],
-            "following": u["following"]["totalCount"], "langs": langs}
+            "following": u["following"]["totalCount"], "langs": langs, "days": days, "weeks": to_weeks(days), "pinned": pinned}
+
+
+def to_weeks(days):
+    weeks, cur = [], [None] * 7
+    for i, d in enumerate(days):
+        if d["weekday"] == 0 and i > 0:
+            weeks.append(cur); cur = [None] * 7
+        cur[d["weekday"]] = d["count"]
+    weeks.append(cur)
+    return weeks
+
+
+def synthetic_calendar(total, seed=7):
+    """Placeholder activity until the first real run; replaced by real data."""
+    rnd = random.Random(seed)
+    end = dt.datetime.now(IST).date()
+    days = []
+    for k in range(371):
+        day = end - dt.timedelta(days=370 - k)
+        wd = (day.weekday() + 1) % 7
+        p = 0.07 if day < dt.date(end.year, 1, 1) else (0.55 if day.month in (2, 3, 8, 9) else 0.4)
+        if wd in (0, 6): p *= 0.6
+        c = 0
+        if rnd.random() < p:
+            c = 1 + int(rnd.expovariate(0.45))
+        days.append({"date": day.isoformat(), "count": c, "weekday": wd})
+    cur = sum(x["count"] for x in days)
+    i = 0
+    while cur != total and i < 5000:
+        x = days[rnd.randrange(len(days))]
+        if cur < total and x["count"] > 0: x["count"] += 1; cur += 1
+        elif cur > total and x["count"] > 1: x["count"] -= 1; cur -= 1
+        i += 1
+    days[-1]["count"] = 0
+    return days
 
 
 def initial():
     """Honest placeholders taken from the profile page; replaced by the first workflow run."""
     d = demo(0, 0)
+    now = dt.datetime.now(dt.timezone.utc)
     d["repos_list"] = [r for r in d["repos_list"] if r["name"] in ("salessaarthi", "Capstone_Coffee-Chat", "DocuQuery-AI", "Gym_Management_System")]
-    d.update({"repos": 86, "followers": 3, "following": 5, "total": 410,
+    d.update({"repos": 86, "followers": 3, "following": 5, "total": 693,
               "langs": [("JavaScript", 52.5), ("TypeScript", 17.6), ("Python", 9.8), ("Dart", 9.4), ("Assembly", 7.8), ("CSS", 3.0)]})
+    d["days"] = synthetic_calendar(693); d["weeks"] = to_weeks(d["days"])
+    d["pinned"] = [{"name": n, "stars": st, "lang": lg, "pushed": now - dt.timedelta(days=ago)} for n, st, lg, ago in [
+        ("salessaarthi", 0, "JavaScript", 3), ("S85_Madhav_Capstone_Coffee-Chat", 1, "JavaScript", 40), ("S85_DocuQuery-AI", 1, "JavaScript", 60),
+        ("S85_Gym_Management_System", 1, "JavaScript", 90), ("-Madhav_S85_Attendance_management_project", 1, "Java", 120), ("SAMBHAV", 0, "JavaScript", 20)]]
     return d
 
 
@@ -75,7 +121,8 @@ def demo(today=3, streak=2):
     repos = [{"name": n, "stars": 1 if i == 1 else 0, "pushed": now - dt.timedelta(days=d), "size": s, "lang": l}
              for i, (n, l, s, d) in enumerate(names)]
     return {"repos_list": repos, "today": today, "streak": streak, "total": 410, "repos": 86, "followers": 3, "following": 5,
-            "langs": [("JavaScript", 52.5), ("TypeScript", 17.6), ("Python", 9.8), ("Dart", 9.4), ("Assembly", 7.8)]}
+            "langs": [("JavaScript", 52.5), ("TypeScript", 17.6), ("Python", 9.8), ("Dart", 9.4), ("Assembly", 7.8)],
+            "days": [], "weeks": [], "pinned": []}
 
 
 # ------------------------------------------------------------------ pixel art helpers
@@ -198,8 +245,10 @@ def build(data, now, state_override=None, phase_override=None):
         if r["stars"]:
             o.append(f'<text x="{bx+w/2}" y="{top_y-14}" text-anchor="middle" font-family="{MONO}" font-size="12" fill="#ffd36b">&#9733;{r["stars"]}</text>')
         name = r["name"].replace("S85_", "")
-        name = name if len(name) <= 10 else name[:9] + "…"
-        o.append(f'<text x="{bx+w/2}" y="{GY+20}" text-anchor="middle" font-family="{MONO}" font-size="10" fill="{MUTED}">{name.replace("&","&amp;")}</text>')
+        name = name.replace("-", "").replace("_", " ").strip()
+        name = name if len(name) <= 9 else name[:8] + "…"
+        ly = GY + 22 + (14 if repos.index(r) % 2 else 0)
+        o.append(f'<text x="{bx+w/2}" y="{ly}" text-anchor="middle" font-family="{MONO}" font-size="10.5" font-weight="700" fill="{PAPER}" opacity="0.9">{name.replace("&","&amp;")}</text>')
         bx += 66
     # lamps
     for lx in (bx + 4, 676):
@@ -212,9 +261,9 @@ def build(data, now, state_override=None, phase_override=None):
     o.append(f'<rect x="{RX0}" y="{RY0}" width="{RX1-RX0}" height="{GY-RY0}" fill="#1b1842" stroke="{LINE}" stroke-width="2"/>')
     o.append(f'<rect x="{RX0}" y="{FLOOR}" width="{RX1-RX0}" height="8" fill="#2d2864"/>')
     o.append(f'<rect x="{RX0+14}" y="{RY0+16}" width="46" height="36" fill="#0b0a1a" stroke="{LINE}"/><rect x="{RX0+14}" y="{RY0+16}" width="46" height="36" fill="url(#sky)" opacity="0.9"/>')
-    msg, mood = {"code": (f"{today} commit{'s' if today != 1 else ''} today", ORANGE),
-                 "celebrate": (f"{streak}-day streak!", ORANGE),
-                 "sleep": ("zzz... no commits yet today", VIOLET)}[state]
+    msg, mood = {"code": (f"Coding now: {today} commit{'s' if today != 1 else ''} today", ORANGE),
+                 "celebrate": (f"{streak}-day streak, on fire!", ORANGE),
+                 "sleep": ("Resting: no commits yet today", VIOLET)}[state]
 
     if state == "code":
         x0, y0 = 840, 300
@@ -250,8 +299,19 @@ def build(data, now, state_override=None, phase_override=None):
     o.append(f'<g><rect x="{bxx:.0f}" y="190" width="{bw:.0f}" height="32" rx="8" fill="{PAPER}"/><path d="M{(RX0+RX1)/2-8:.0f} 222h16l-8 10z" fill="{PAPER}"/>'
              f'<text x="{(RX0+RX1)/2:.0f}" y="211" text-anchor="middle" font-family="{MONO}" font-size="13" font-weight="700" fill="{INK}">{msg}</text></g>')
 
+    o.append(f'<text x="{RX1-12}" y="{RY0+22}" text-anchor="end" font-family="{MONO}" font-size="11" letter-spacing="2" fill="{MUTED}">MY ROOM, LIVE</text>')
+    # legend: how to read the town
+    LXP, LYP = 24, 110
+    o.append(f'<rect x="{LXP}" y="{LYP}" width="318" height="100" rx="12" fill="{INK}" opacity="0.9"/>'
+             f'<text x="{LXP+16}" y="{LYP+22}" font-family="{MONO}" font-size="11" letter-spacing="2" fill="{ORANGE}" font-weight="800">HOW TO READ THIS TOWN</text>'
+             f'<rect x="{LXP+18}" y="{LYP+34}" width="12" height="16" fill="{BODY[phase]}" stroke="{PAPER}" stroke-width="1"/>'
+             f'<text x="{LXP+44}" y="{LYP+47}" font-family="{SANS}" font-size="12.5" fill="{PAPER}">Each building is one of my repos</text>'
+             f'<rect x="{LXP+14}" y="{LYP+62}" width="8" height="10" fill="{BODY[phase]}" stroke="{PAPER}" stroke-width="1"/><rect x="{LXP+25}" y="{LYP+56}" width="8" height="16" fill="{BODY[phase]}" stroke="{PAPER}" stroke-width="1"/>'
+             f'<text x="{LXP+44}" y="{LYP+70}" font-family="{SANS}" font-size="12.5" fill="{PAPER}">Taller building means a bigger repo</text>'
+             f'<rect x="{LXP+18}" y="{LYP+80}" width="10" height="12" fill="#ffd36b"/>'
+             f'<text x="{LXP+44}" y="{LYP+90}" font-family="{SANS}" font-size="12.5" fill="{PAPER}">Lit window means I pushed code recently</text>')
     # caption
-    o.append(f'<text x="40" y="{H-14}" font-family="{MONO}" font-size="11" fill="{MUTED}">live from my GitHub: each building is a repo, taller is bigger, lit windows are recent pushes, 1 level per 40 contributions</text>')
+    o.append(f'<text x="40" y="{H-14}" font-family="{MONO}" font-size="12" fill="{MUTED}">Live from my GitHub. The sky follows India time, and my character codes when I commit.</text>')
 
     svg = f'''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {H}" width="{W}" height="{H}" role="img" aria-label="Pixel town built from Madhav's GitHub activity. Madhav is {'celebrating a streak' if state=='celebrate' else 'coding' if state=='code' else 'sleeping'}.">
 <defs><linearGradient id="hg" x1="0" x2="1"><stop offset="0" stop-color="{ORANGE}"/><stop offset="1" stop-color="{VIOLET}"/></linearGradient><linearGradient id="g" x1="0" x2="1"><stop offset="0" stop-color="{ORANGE}"/><stop offset="1" stop-color="{VIOLET}"/></linearGradient>
@@ -266,7 +326,7 @@ def build(data, now, state_override=None, phase_override=None):
 def main():
     now = dt.datetime.now(IST)
     if "--demo" in sys.argv:
-        data = demo(3, 2)
+        data = initial(); data["today"], data["streak"] = 3, 2
     elif "--initial" in sys.argv:
         data = initial()
     else:
@@ -278,7 +338,8 @@ def main():
     out = os.path.join(ROOT, "assets")
     os.makedirs(out, exist_ok=True)
     files = {"scene.svg": build(data, now), "instagram.svg": pa.instagram(data), "player.svg": pa.player(data),
-             "wrapped.svg": pa.wrapped(data), "inventory.svg": pa.inventory(data)}
+             "wrapped.svg": pa.wrapped(data), "projects.svg": pa.projects(data), "inventory.svg": pa.inventory(data),
+             "daily.svg": pa.daily(data, now), "snake.svg": pa.snake(data)}
     for name, svg in files.items():
         open(os.path.join(out, name), "w", encoding="utf-8").write(svg)
     print("wrote", ", ".join(files), "| today:", data["today"], "streak:", data["streak"], "total:", data["total"])
