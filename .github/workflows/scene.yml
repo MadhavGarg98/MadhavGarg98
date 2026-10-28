@@ -2,8 +2,8 @@ name: Update pixel scene
 
 on:
   schedule:
-    - cron: "*/30 * * * *"     # every 30 minutes
-  workflow_dispatch:           # "Run workflow" button
+    - cron: "*/30 * * * *"     # backup only, GitHub often runs this late
+  workflow_dispatch:           # "Run workflow" button, also used by the free timer (cron-job.org)
   push:
     paths:
       - "scripts/**"
@@ -11,6 +11,10 @@ on:
 
 permissions:
   contents: write
+
+concurrency:
+  group: profile-scene
+  cancel-in-progress: false
 
 jobs:
   scene:
@@ -33,7 +37,7 @@ jobs:
             git fetch origin "$BRANCH"
             git reset --hard "origin/$BRANCH"
             python scripts/build_scene.py
-            git add assets
+            git add assets README.md
             if git diff --cached --quiet; then break; fi
             git commit -m "profile: refresh pictures"
             if git push origin "HEAD:$BRANCH"; then break; fi
