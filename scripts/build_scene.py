@@ -19,12 +19,61 @@ LANG = {"Java": "#ED8B00", "JavaScript": "#f1e05a", "TypeScript": "#3178c6", "Py
 
 
 # ------------------------------------------------------------------ data
+def fetch_events(token):
+    """Public activity feed: it updates within minutes, unlike the contribution graph."""
+    out = []
+    for page in (1, 2, 3):
+        try:
+            req = urllib.request.Request(f"https://api.github.com/users/{USER}/events/public?per_page=100&page={page}",
+                                         headers={"Authorization": f"Bearer {token}", "User-Agent": "profile-scene",
+                                                  "Accept": "application/vnd.github+json"})
+            chunk = json.load(urllib.request.urlopen(req, timeout=30))
+        except Exception as e:
+            print("events page failed:", page, e); break
+        out += chunk
+        if len(chunk) < 100: break
+    return out
+
+
+def ist_push_counts(events):
+    """Commits pushed per India-time date, from PushEvents."""
+    counts = {}
+    for e in events:
+        if e.get("type") != "PushEvent": continue
+        when = dt.datetime.fromisoformat(e["created_at"].replace("Z", "+00:00")).astimezone(IST).date().isoformat()
+        p = e.get("payload", {})
+        n = p.get("distinct_size") or p.get("size") or len(p.get("commits", []) or []) or 1
+        counts[when] = counts.get(when, 0) + n
+    return counts
+
+
+def merge_activity(days, events, today_ist):
+    """Combine the contribution graph (UTC days) with live pushes (India days).
+    Returns today's commits, current streak and the days list with today's number refreshed."""
+    ev = ist_push_counts(events) if events and isinstance(events, list) else {}
+    days = [dict(d) for d in days]
+    by_date = {d["date"]: d for d in days}
+    active = {d["date"]: d["count"] > 0 for d in days}
+    for date, n in ev.items():
+        active[date] = True
+        if date in by_date and n > by_date[date]["count"]:
+            by_date[date]["count"] = n
+    t = today_ist.isoformat()
+    today = max(by_date[t]["count"] if t in by_date else 0, ev.get(t, 0))
+    cur = today_ist if active.get(t) else today_ist - dt.timedelta(days=1)
+    streak = 0
+    while active.get(cur.isoformat()):
+        streak += 1; cur -= dt.timedelta(days=1)
+    return today, streak, days
+
+
 def fetch():
     token = os.environ["GITHUB_TOKEN"]
     q = """query($login:String!){user(login:$login){
       followers{totalCount} following{totalCount}
       allRepos: repositories(privacy:PUBLIC,ownerAffiliations:OWNER){totalCount}
-      contributionsCollection{contributionCalendar{totalContributions weeks{contributionDays{date contributionCount weekday}}}}
+      contributionsCollection{contributionCalendar{totalContributions weeks{contributionDays{date contributionCount weekday}}}
+        commitContributionsByRepository(maxRepositories:12){repository{name owner{login} stargazerCount pushedAt diskUsage isFork primaryLanguage{name}}}}
       repositories(first:12,privacy:PUBLIC,ownerAffiliations:OWNER,isFork:false,orderBy:{field:PUSHED_AT,direction:DESC}){
         nodes{name stargazerCount pushedAt diskUsage primaryLanguage{name}}}
       pinnedItems(first:6,types:REPOSITORY){nodes{... on Repository{name stargazerCount pushedAt primaryLanguage{name}}}}
@@ -38,17 +87,20 @@ def fetch():
     cal = u["contributionsCollection"]["contributionCalendar"]
     raw_days = [d for w in cal["weeks"] for d in w["contributionDays"]]
     days = [{"date": d["date"], "count": d["contributionCount"], "weekday": d["weekday"]} for d in raw_days]
-    counts = [d["count"] for d in days]
-    today = counts[-1]
-    i = len(counts) - 1 if today > 0 else len(counts) - 2
-    streak = 0
-    while i >= 0 and counts[i] > 0:
-        streak += 1; i -= 1
-    repos = []
-    for r in u["repositories"]["nodes"]:
+    ev = fetch_events(token)
+    now_ist = dt.datetime.now(IST).date()
+    today, streak, days = merge_activity(days, ev, now_ist)
+    seen, repos = set(), []
+    cands = [r for r in u["repositories"]["nodes"]]
+    cands += [c["repository"] for c in u["contributionsCollection"]["commitContributionsByRepository"]]
+    for r in cands:
+        key = (r.get("owner") or {}).get("login", USER) + "/" + r["name"]
+        if key in seen: continue
+        seen.add(key)
         pushed = dt.datetime.fromisoformat(r["pushedAt"].replace("Z", "+00:00"))
         repos.append({"name": r["name"], "stars": r["stargazerCount"], "pushed": pushed,
                       "size": r["diskUsage"] or 1, "lang": (r["primaryLanguage"] or {}).get("name", "")})
+    repos.sort(key=lambda r: r["pushed"], reverse=True)
     sizes = {}
     for rp in u["langRepos"]["nodes"]:
         for e in rp["languages"]["edges"]:
@@ -196,7 +248,7 @@ def build(data, now, state_override=None, phase_override=None):
     o.append(hearts + f'<text x="500" y="68" font-family="{MONO}" font-size="12" fill="{PAPER}">{streak}-day streak, {today} today</text>')
     icon = ('<circle cx="0" cy="0" r="9" fill="#f4f1d8"/>' if night else f'<circle cx="0" cy="0" r="9" fill="{GOLD}"/>')
     o.append(f'<g transform="translate(930 36)">{icon}</g><text x="900" y="40" text-anchor="end" font-family="{MONO}" font-size="20" font-weight="800" fill="{PAPER}">{now.strftime("%H:%M")}</text>'
-             f'<text x="960" y="68" text-anchor="end" font-family="{MONO}" font-size="12" letter-spacing="2" fill="{MUTED}">IST  {phase.upper()}</text>')
+             f'<text x="960" y="68" text-anchor="end" font-family="{MONO}" font-size="11" letter-spacing="1" fill="{MUTED}">UPDATED IST  {phase.upper()}</text>')
 
     # sky
     o.append(f'<rect y="96" width="{W}" height="{GY-96}" fill="url(#sky)"/>')
@@ -311,7 +363,7 @@ def build(data, now, state_override=None, phase_override=None):
              f'<rect x="{LXP+18}" y="{LYP+80}" width="10" height="12" fill="#ffd36b"/>'
              f'<text x="{LXP+44}" y="{LYP+90}" font-family="{SANS}" font-size="12.5" fill="{PAPER}">Lit window means I pushed code recently</text>')
     # caption
-    o.append(f'<text x="40" y="{H-14}" font-family="{MONO}" font-size="12" fill="{MUTED}">Live from my GitHub. The sky follows India time, and my character codes when I commit.</text>')
+    o.append(f'<text x="40" y="{H-14}" font-family="{MONO}" font-size="12" fill="{MUTED}">Refreshed every 30 minutes from my GitHub, including repos I contribute to. The sky follows India time.</text>')
 
     svg = f'''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {H}" width="{W}" height="{H}" role="img" aria-label="Pixel town built from Madhav's GitHub activity. Madhav is {'celebrating a streak' if state=='celebrate' else 'coding' if state=='code' else 'sleeping'}.">
 <defs><linearGradient id="hg" x1="0" x2="1"><stop offset="0" stop-color="{ORANGE}"/><stop offset="1" stop-color="{VIOLET}"/></linearGradient><linearGradient id="g" x1="0" x2="1"><stop offset="0" stop-color="{ORANGE}"/><stop offset="1" stop-color="{VIOLET}"/></linearGradient>
