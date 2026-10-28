@@ -2,7 +2,7 @@
 Usage:  python scripts/build_scene.py            (real data, needs GITHUB_TOKEN)
         python scripts/build_scene.py --demo     (fake data, for previews)
 """
-import datetime as dt, json, math, os, random, sys, urllib.request
+import datetime as dt, json, math, os, random, re, sys, time, urllib.request
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import profile_art as pa
 
@@ -83,7 +83,10 @@ def fetch():
                                  data=json.dumps({"query": q, "variables": {"login": USER}}).encode(),
                                  headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json",
                                           "User-Agent": "profile-scene"})
-    u = json.load(urllib.request.urlopen(req, timeout=30))["data"]["user"]
+    resp = json.load(urllib.request.urlopen(req, timeout=30))
+    if resp.get("errors") and not (resp.get("data") or {}).get("user"):
+        raise RuntimeError("GitHub GraphQL error: " + json.dumps(resp["errors"])[:400])
+    u = resp["data"]["user"]
     cal = u["contributionsCollection"]["contributionCalendar"]
     raw_days = [d for w in cal["weeks"] for d in w["contributionDays"]]
     days = [{"date": d["date"], "count": d["contributionCount"], "weekday": d["weekday"]} for d in raw_days]
@@ -92,8 +95,9 @@ def fetch():
     today, streak, days = merge_activity(days, ev, now_ist)
     seen, repos = set(), []
     cands = [r for r in u["repositories"]["nodes"]]
-    cands += [c["repository"] for c in u["contributionsCollection"]["commitContributionsByRepository"]]
+    cands += [c["repository"] for c in (u["contributionsCollection"].get("commitContributionsByRepository") or []) if c and c.get("repository")]
     for r in cands:
+        if not r or not r.get("pushedAt"): continue
         key = (r.get("owner") or {}).get("login", USER) + "/" + r["name"]
         if key in seen: continue
         seen.add(key)
@@ -101,6 +105,7 @@ def fetch():
         repos.append({"name": r["name"], "stars": r["stargazerCount"], "pushed": pushed,
                       "size": r["diskUsage"] or 1, "lang": (r["primaryLanguage"] or {}).get("name", "")})
     repos.sort(key=lambda r: r["pushed"], reverse=True)
+    print(f"[data] events read: {len(ev) if isinstance(ev, list) else 0} | repos in town: {len(repos)} | today (IST): {today} | streak: {streak}")
     sizes = {}
     for rp in u["langRepos"]["nodes"]:
         for e in rp["languages"]["edges"]:
@@ -109,6 +114,7 @@ def fetch():
     langs = sorted(((n, v * 100.0 / tot) for n, v in sizes.items()), key=lambda x: -x[1])[:6]
     pinned = []
     for r in u["pinnedItems"]["nodes"]:
+        if not r or not r.get("name"): continue
         pinned.append({"name": r["name"], "stars": r["stargazerCount"], "lang": (r["primaryLanguage"] or {}).get("name", ""),
                        "pushed": dt.datetime.fromisoformat(r["pushedAt"].replace("Z", "+00:00"))})
     return {"repos_list": repos, "today": today, "streak": streak, "total": cal["totalContributions"],
@@ -375,6 +381,15 @@ def build(data, now, state_override=None, phase_override=None):
     return svg
 
 
+def bump_readme(stamp):
+    """Change ?v= on every picture link so GitHub and the browser fetch the fresh file."""
+    p = os.path.join(ROOT, "README.md")
+    if not os.path.exists(p): return
+    t = open(p, encoding="utf-8").read()
+    t2 = re.sub(r'(assets/[A-Za-z0-9_-]+\.svg)(\?v=\d+)?', lambda m: f"{m.group(1)}?v={stamp}", t)
+    if t2 != t: open(p, "w", encoding="utf-8").write(t2)
+
+
 def main():
     now = dt.datetime.now(IST)
     if "--demo" in sys.argv:
@@ -384,9 +399,10 @@ def main():
     else:
         try:
             data = fetch()
-        except Exception as e:  # never break the profile because of an API hiccup
-            print("GitHub API failed, keeping the old pictures:", e)
-            sys.exit(0)
+        except Exception as e:
+            import traceback; traceback.print_exc()
+            print("ERROR: could not read GitHub data, pictures were NOT updated:", e)
+            sys.exit(1)
     out = os.path.join(ROOT, "assets")
     os.makedirs(out, exist_ok=True)
     files = {"scene.svg": build(data, now), "instagram.svg": pa.instagram(data), "player.svg": pa.player(data),
@@ -394,6 +410,8 @@ def main():
              "daily.svg": pa.daily(data, now), "snake.svg": pa.snake(data)}
     for name, svg in files.items():
         open(os.path.join(out, name), "w", encoding="utf-8").write(svg)
+    if "--demo" not in sys.argv and "--initial" not in sys.argv:
+        bump_readme(int(time.time()))
     print("wrote", ", ".join(files), "| today:", data["today"], "streak:", data["streak"], "total:", data["total"])
 
 
